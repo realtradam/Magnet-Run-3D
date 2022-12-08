@@ -28,13 +28,11 @@ public class MovingSphere : MonoBehaviour
 
 	Vector3 inputVelocity;
 
-	// Start is called before the first frame update
 	void Awake()
 	{
 		body = GetComponent<Rigidbody>();
 	}
 
-	// Update is called once per frame
 	void Update()
 	{
 		Vector2 playerInput = new Vector2(
@@ -68,7 +66,6 @@ public class MovingSphere : MonoBehaviour
 
 		if(desiredJump)
 		{
-			Debug.Log("Attempted Jump!");
 			desiredJump = false;
 			Jump();
 		}
@@ -89,7 +86,6 @@ public class MovingSphere : MonoBehaviour
 	{
 		if(onGround || jumpPhase < maxAirJumps)
 		{
-			Debug.Log("Jump!");
 			jumpPhase += 1;
 			float jumpSpeed = Mathf.Sqrt(-2f * Physics.gravity.y * jumpHeight);
 			if(velocity.y > 0f)
