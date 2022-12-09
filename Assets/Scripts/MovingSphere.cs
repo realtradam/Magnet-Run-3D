@@ -5,12 +5,13 @@ using UnityEngine;
 public class MovingSphere : MonoBehaviour
 {
 	Rigidbody body;
+	Renderer renderer;
 
-	[SerializeField, Range(1f, 100f)]
+	[SerializeField, Range(0f, 100f)]
 	float maxSpeed = 10f;
-	[SerializeField, Range(1f, 100f)]
+	[SerializeField, Range(0f, 100f)]
 	float maxAcceleration = 10f;
-	[SerializeField, Range(1f, 100f)]
+	[SerializeField, Range(0f, 100f)]
 	float maxAirAcceleration = 1f;
 	Vector3 velocity;
 
@@ -20,17 +21,23 @@ public class MovingSphere : MonoBehaviour
 	int maxAirJumps;
 	bool desiredJump;
 	int jumpPhase;
-	bool onGround;
+	int groundContactCount;
 
-	// 0.0 means walls
-	// 1.0 means floors
-	float maxJumpAngle = 0.1f; 
+	bool OnGround => groundContactCount > 0;
+
+	Vector3 contactNormal;
+
+	// 1.0 means walls
+	// 0.0 means floors
+	[SerializeField, Range(0f, 1f)]
+	float maxJumpAngle = 0.44f; 
 
 	Vector3 inputVelocity;
 
 	void Awake()
 	{
 		body = GetComponent<Rigidbody>();
+		renderer = GetComponent<Renderer>();
 	}
 
 	void Update()
@@ -43,26 +50,18 @@ public class MovingSphere : MonoBehaviour
 
 		desiredJump |= Input.GetButtonDown("Jump");
 
-		inputVelocity = new Vector3(playerInput.x, 0f, playerInput.y);
+		inputVelocity = new Vector3(playerInput.x, 0f, playerInput.y) * maxSpeed;
 
+		Color purple = Color.red + Color.blue;
+		renderer.material.SetColor(
+				"_BaseColor", purple - (purple * (groundContactCount * 0.33f))
+				);
 	}
 
 	void FixedUpdate()
 	{
 		UpdateState();
-		Vector3 acceleration = new Vector3(
-				inputVelocity.x,
-				0f,
-				inputVelocity.z
-				);
-
-		if(onGround)
-			acceleration *= maxAcceleration;
-		else
-			acceleration *= maxAirAcceleration;
-
-		velocity += acceleration * Time.deltaTime;
-		velocity = Vector3.ClampMagnitude(velocity, maxSpeed);
+		AdjustVelocity();
 
 		if(desiredJump)
 		{
@@ -71,26 +70,38 @@ public class MovingSphere : MonoBehaviour
 		}
 
 		body.velocity = velocity;
-
-		onGround = false;
+		ClearState();
 	}
+
+	void ClearState() {
+		groundContactCount = 0;
+		contactNormal = Vector3.zero;
+	}
+
 
 	void UpdateState()
 	{
 		velocity = body.velocity;
-		if(onGround)
+		if(OnGround)
+		{
 			jumpPhase = 0;
+			if(groundContactCount > 1)
+				contactNormal.Normalize();
+		}
+		else
+			contactNormal = Vector3.up;
 	}
 
 	void Jump()
 	{
-		if(onGround || jumpPhase < maxAirJumps)
+		if(OnGround || jumpPhase < maxAirJumps)
 		{
 			jumpPhase += 1;
 			float jumpSpeed = Mathf.Sqrt(-2f * Physics.gravity.y * jumpHeight);
-			if(velocity.y > 0f)
-				jumpSpeed = Mathf.Max(jumpSpeed - velocity.y, 0f);
-			velocity.y += jumpSpeed;
+			float alignedSpeed = Vector3.Dot(velocity, contactNormal);
+			if(alignedSpeed > 0f)
+				jumpSpeed = Mathf.Max(jumpSpeed - alignedSpeed, 0f);
+			velocity += contactNormal * jumpSpeed;
 		}
 	}
 
@@ -103,9 +114,46 @@ public class MovingSphere : MonoBehaviour
 	}
 
 	void EvaluateCollision(Collision collision) {
-		for (int i = 0; i < collision.contactCount; i++) {
+		for(int i = 0; i < collision.contactCount; i++)
+		{
 			Vector3 normal = collision.GetContact(i).normal;
-			onGround |= normal.y >= maxJumpAngle;
+			if(normal.y >= (1f - maxJumpAngle))
+			{
+				groundContactCount += 1;
+				contactNormal += normal;
+			}
 		}
+	}
+
+	void AdjustVelocity()
+	{
+		Vector3 xAxis = ProjectOnContactPlane(Vector3.right).normalized;
+		Vector3 zAxis = ProjectOnContactPlane(Vector3.forward).normalized;
+
+		Vector3 currentVel = new Vector3(
+				Vector3.Dot(velocity, xAxis),
+				0f,
+				Vector3.Dot(velocity, zAxis)
+				);
+
+		float maxSpeedChange = Time.deltaTime;
+		if(OnGround)
+			maxSpeedChange *= maxAcceleration;
+		else
+			maxSpeedChange *= maxAirAcceleration;
+
+		Vector3 newVel = new Vector3(
+				Mathf.MoveTowards(currentVel.x, inputVelocity.x, maxSpeedChange),
+				0f,
+				Mathf.MoveTowards(currentVel.z, inputVelocity.z, maxSpeedChange)
+				);
+
+
+		velocity += xAxis * (newVel.x - currentVel.x) + zAxis * (newVel.z - currentVel.z);
+	}
+
+	Vector3 ProjectOnContactPlane(Vector3 vector)
+	{
+		return vector - contactNormal * Vector3.Dot(vector, contactNormal);
 	}
 }
