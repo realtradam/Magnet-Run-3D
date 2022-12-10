@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 7613584273971372069}
   - component: {fileID: 7613584273971372074}
   - component: {fileID: 7613584273971372073}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Sphere
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -51,10 +51,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxSpeed: 10
   maxAcceleration: 15
-  maxAirAcceleration: 2
+  maxAirAcceleration: 0
   jumpHeight: 2
   maxAirJumps: 0
-  maxJumpAngle: 0.44
+  maxSnapSpeed: 100
+  raycastProbeDistance: 1
+  probeMask:
+    serializedVersion: 2
+    m_Bits: 563
+  maxSlopeAngle: 0.44
+  maxStairAngle: 0.6
 --- !u!33 &7613584273971372071
 MeshFilter:
   m_ObjectHideFlags: 0
