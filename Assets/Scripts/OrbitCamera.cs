@@ -20,6 +20,9 @@ public class OrbitCamera : MonoBehaviour
 	[SerializeField, Range(0f, 1f)]
 	float focusCenteringSpeed = 0.5f;
 
+	[SerializeField, Range(0f, 1f)]
+	float rotationFlippingSpeed = 0.9f;
+
 	[SerializeField, Range(1f, 360f)]
 	float rotationSpeed = 90f;
 
@@ -57,10 +60,7 @@ public class OrbitCamera : MonoBehaviour
 
 	void LateUpdate()
 	{
-		gravityAlignment = Quaternion.FromToRotation(
-				gravityAlignment * Vector3.up,
-				CustomGravity.GetUpAxis(focusPoint)
-				) * gravityAlignment;
+		UpdateGravityAlignment();
 		UpdateFocusPoint();
 		if(ManualRotation() || AutomaticRotation())
 		{
@@ -96,6 +96,36 @@ public class OrbitCamera : MonoBehaviour
 		transform.SetPositionAndRotation(lookPosition, lookRotation);
 	}
 
+	void UpdateGravityAlignment() {
+		Vector3 fromUp = gravityAlignment * Vector3.up;
+		Vector3 toUp = CustomGravity.GetUpAxis(focusPoint);
+		float dot = Mathf.Clamp(
+				Vector3.Dot(fromUp, toUp),
+				-1f,
+				1f
+				);
+		float angle = Mathf.Acos(dot) * Mathf.Rad2Deg;
+
+
+		Quaternion newAlignment =
+			Quaternion.FromToRotation(fromUp, toUp) * gravityAlignment;
+
+		if(angle > 0.1f && rotationFlippingSpeed > 0f)
+		{
+			float t = Mathf.Pow(
+					1f - rotationFlippingSpeed,
+					Time.unscaledDeltaTime
+					);
+			gravityAlignment = Quaternion.SlerpUnclamped(
+					gravityAlignment,
+					newAlignment,
+					1-t
+					);
+		}
+		else
+			gravityAlignment = newAlignment;
+	}
+
 	void UpdateFocusPoint()
 	{
 		previousFocusPoint = focusPoint;
@@ -105,15 +135,20 @@ public class OrbitCamera : MonoBehaviour
 			float t = 1f;
 			float distance = Vector3.Distance(targetPoint, focusPoint);
 			if(distance > 0.01f && focusCenteringSpeed > 0f)
-				t = Mathf.Pow(1f - focusCenteringSpeed, Time.unscaledDeltaTime);
+			{
+				t = Mathf.Pow(
+						1f - focusCenteringSpeed,
+						Time.unscaledDeltaTime
+						);
+			}
 			if(distance > focusLimitRadius)
 			{
 				t = Mathf.Min(t, focusLimitRadius / distance);
 			}
 			focusPoint = Vector3.Lerp(
-					targetPoint,
 					focusPoint,
-					t
+					targetPoint,
+					1-t
 					);
 		}
 		else
