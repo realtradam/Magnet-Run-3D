@@ -60,6 +60,9 @@ MonoBehaviour:
   probeMask:
     serializedVersion: 2
     m_Bits: 563
+  stairsMask:
+    serializedVersion: 2
+    m_Bits: 512
   maxSlopeAngle: 0.44
   maxStairAngle: 0.6
 --- !u!33 &7613584273971372071

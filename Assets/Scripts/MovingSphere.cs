@@ -4,9 +4,13 @@ using UnityEngine;
 
 public class MovingSphere : MonoBehaviour
 {
+	// if we want input relative to a
+	// camera(or some other arbitrary object) we
+	// put that object here
 	[SerializeField]
 	Transform playerInputSpace = default;
 
+	// "self" objects
 	Rigidbody body;
 	Renderer renderer;
 
@@ -34,6 +38,7 @@ public class MovingSphere : MonoBehaviour
 	float raycastProbeDistance = 1f;
 	[SerializeField]
 	LayerMask probeMask = -1;
+	[SerializeField]
 	LayerMask stairsMask = -1;
 
 
@@ -50,7 +55,8 @@ public class MovingSphere : MonoBehaviour
 	bool OnSteep => steepContactCount > 0;
 
 	Vector3 upAxis;
-
+	Vector3 rightAxis;
+	Vector3 forwardAxis;
 
 	// 1.0 means walls
 	// 0.0 means floors
@@ -68,6 +74,7 @@ public class MovingSphere : MonoBehaviour
 	{
 		body = GetComponent<Rigidbody>();
 		renderer = GetComponent<Renderer>();
+		body.useGravity = false;
 	}
 
 	void Update()
@@ -82,38 +89,38 @@ public class MovingSphere : MonoBehaviour
 
 		if(playerInputSpace)
 		{
-			Vector3 forward = playerInputSpace.forward;
-			forward.y = 0f;
-			forward.Normalize();
-			Vector3 right = playerInputSpace.right;
-			right.y = 0f;
-			right.Normalize();
-			inputVelocity = 
-				((forward * playerInput.y) + (right * playerInput.x)) * maxSpeed;
+			rightAxis = ProjectDirectionOnPlane(playerInputSpace.right, upAxis);
+			forwardAxis = ProjectDirectionOnPlane(playerInputSpace.forward, upAxis);
 		}
 		else
-			inputVelocity = new Vector3(playerInput.x, 0f, playerInput.y) * maxSpeed;
+		{
+			rightAxis = ProjectDirectionOnPlane(Vector3.right, upAxis);
+			forwardAxis = ProjectDirectionOnPlane(Vector3.forward, upAxis);
+		}
+		inputVelocity = new Vector3(playerInput.x, 0f, playerInput.y) * maxSpeed;
 
 		Color purple = Color.red + Color.blue;
 		//renderer.material.SetColor(
 		//		"_BaseColor", purple - (purple * (groundContactCount * 0.33f))
 		//		);
-		renderer.material.SetColor(
-				"_BaseColor", OnGround ? purple * 0.9f : purple * 0.1f
-				);
+		//renderer.material.SetColor(
+		//		"_BaseColor", OnGround ? purple * 0.9f : purple * 0.1f
+		//		);
 	}
 
 	void FixedUpdate()
 	{
-		upAxis = -Physics.gravity.normalized;
+		Vector3 gravity = CustomGravity.GetGravity(body.position, out upAxis);
 		UpdateState();
 		AdjustVelocity();
 
 		if(desiredJump)
 		{
 			desiredJump = false;
-			Jump();
+			Jump(gravity);
 		}
+
+		velocity += gravity * Time.deltaTime;
 
 		body.velocity = velocity;
 		ClearState();
@@ -148,7 +155,7 @@ public class MovingSphere : MonoBehaviour
 			contactNormal = upAxis;
 	}
 
-	void Jump()
+	void Jump(Vector3 gravity)
 	{
 		Vector3 jumpDirection;
 
@@ -170,7 +177,7 @@ public class MovingSphere : MonoBehaviour
 
 		stepsSinceLastJump = 0;
 		jumpPhase += 1;
-		float jumpSpeed = Mathf.Sqrt(2f * Physics.gravity.magnitude * jumpHeight);
+		float jumpSpeed = Mathf.Sqrt(2f * gravity.magnitude * jumpHeight);
 		jumpDirection = (jumpDirection + upAxis).normalized;
 		float alignedSpeed = Vector3.Dot(velocity, jumpDirection);
 		if(alignedSpeed > 0f)
@@ -193,7 +200,8 @@ public class MovingSphere : MonoBehaviour
 					probeMask
 					))
 			return false;
-		if(hit.normal.y < GetMinDot(hit.collider.gameObject.layer))
+		float upDot = Vector3.Dot(upAxis, hit.normal);
+		if(upDot < GetMinDot(hit.collider.gameObject.layer))
 			return false;
 
 		groundContactCount = 1;
@@ -217,12 +225,13 @@ public class MovingSphere : MonoBehaviour
 		for(int i = 0; i < collision.contactCount; i++)
 		{
 			Vector3 normal = collision.GetContact(i).normal;
-			if(normal.y >= minDot)
+			float upDot = GetMinDot(collision.gameObject.layer);
+			if(upDot >= minDot)
 			{
 				groundContactCount += 1;
 				contactNormal += normal;
 			}
-			else if(normal.y > -0.01f)
+			else if(upDot > -0.01f)
 			{
 				steepContactCount += 1;
 				steepNormal += normal;
@@ -232,8 +241,8 @@ public class MovingSphere : MonoBehaviour
 
 	void AdjustVelocity()
 	{
-		Vector3 xAxis = ProjectOnContactPlane(Vector3.right).normalized;
-		Vector3 zAxis = ProjectOnContactPlane(Vector3.forward).normalized;
+		Vector3 xAxis = ProjectDirectionOnPlane(rightAxis, contactNormal);
+		Vector3 zAxis = ProjectDirectionOnPlane(forwardAxis, contactNormal);
 
 		Vector3 currentVel = new Vector3(
 				Vector3.Dot(velocity, xAxis),
@@ -257,9 +266,9 @@ public class MovingSphere : MonoBehaviour
 		velocity += xAxis * (newVel.x - currentVel.x) + zAxis * (newVel.z - currentVel.z);
 	}
 
-	Vector3 ProjectOnContactPlane(Vector3 vector)
+	Vector3 ProjectDirectionOnPlane(Vector3 direction, Vector3 normal)
 	{
-		return vector - contactNormal * Vector3.Dot(vector, contactNormal);
+		return (direction - normal * Vector3.Dot(direction, normal)).normalized;
 	}
 
 	float GetMinDot(int layer)
@@ -275,7 +284,8 @@ public class MovingSphere : MonoBehaviour
 		if(steepContactCount > 1)
 		{
 			steepNormal.Normalize();
-			if(steepNormal.y >= minGroundDotProduct)
+			float upDot = Vector3.Dot(upAxis, steepNormal);
+			if(upDot >= minGroundDotProduct)
 			{
 				groundContactCount = 1;
 				contactNormal = steepNormal;
