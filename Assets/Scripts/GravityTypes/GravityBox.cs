@@ -143,7 +143,7 @@ public class GravityBox : GravitySource
 		float g = gravity;
 		if(distance > innerDistance)
 			g *= 1f - (distance - innerDistance) * innerFalloffFactor;
-		return coordinate <= 0f ? -g : g;
+		return coordinate > 0f ? -g : g;
 	}
 
 	public override Vector3 GetGravity(Vector3 position)
@@ -201,7 +201,7 @@ public class GravityBox : GravitySource
 				return Vector3.zero;
 			float g = gravity / distance;
 			if(distance > outerDistance)
-				g *= 1f - (distance - outerDistance * outerFalloffFactor);
+				g *= 1f - (distance - outerDistance) * outerFalloffFactor;
 			return transform.TransformDirection(g * vector);
 		}
 

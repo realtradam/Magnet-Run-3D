@@ -34,7 +34,7 @@ public class GravitySphere : GravitySource
 		}
 		else if(distance < innerRadius)
 		{
-			g *= -(1f - (distance - innerRadius) * innerFalloffFactor);
+			g *= 1f - (distance - innerRadius) * innerFalloffFactor;
 		}
 		return g * vector;
 	}
@@ -72,7 +72,7 @@ public class GravitySphere : GravitySource
 		outerRadius = Mathf.Max(outerRadius, innerRadius);
 		outerFalloffRadius = Mathf.Max(outerFalloffRadius, outerRadius);
 
-		innerFalloffFactor = 1f / (innerFalloffRadius - innerRadius);
+		innerFalloffFactor = 1f / (innerRadius - innerFalloffRadius);
 		outerFalloffFactor = 1f / (outerFalloffRadius - outerRadius);
 	}
 
