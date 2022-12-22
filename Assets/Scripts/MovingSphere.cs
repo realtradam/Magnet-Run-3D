@@ -9,6 +9,8 @@ public class MovingSphere : MonoBehaviour
 	// put that object here
 	[SerializeField]
 	Transform playerInputSpace = default;
+	[SerializeField]
+	Transform ball = default;
 
 	// "self" objects
 	Rigidbody body;
@@ -68,12 +70,20 @@ public class MovingSphere : MonoBehaviour
 	float maxStairAngle = 0.6f;
 	float minStairsDotProduct;
 
+	[SerializeField, Min(0f)]
+	float ballAlignSpeed = 180f;
+
+	[SerializeField, Min(0.1f)]
+	float ballRadius = 0.5f;
+
+	Vector3 lastContactNormal;
+
 	Vector3 inputVelocity;
 
 	void Awake()
 	{
 		body = GetComponent<Rigidbody>();
-		renderer = GetComponent<Renderer>();
+		renderer = ball.GetComponent<Renderer>();
 		body.useGravity = false;
 	}
 
@@ -106,7 +116,9 @@ public class MovingSphere : MonoBehaviour
 		//renderer.material.SetColor(
 		//		"_BaseColor", OnGround ? purple * 0.9f : purple * 0.1f
 		//		);
+		UpdateBall();
 	}
+
 
 	void FixedUpdate()
 	{
@@ -127,6 +139,7 @@ public class MovingSphere : MonoBehaviour
 	}
 
 	void ClearState() {
+		lastContactNormal = contactNormal;
 		groundContactCount = steepContactCount = 0;
 		contactNormal = steepNormal = Vector3.zero;
 	}
@@ -153,6 +166,41 @@ public class MovingSphere : MonoBehaviour
 		}
 		else
 			contactNormal = upAxis;
+	}
+
+	void UpdateBall()
+	{
+		Vector3 movement = body.velocity * Time.deltaTime;
+		float distance = movement.magnitude;
+		if(distance < 0.001f)
+			return;
+		float angle = distance * (180f / Mathf.PI) / ballRadius;
+		Vector3 rotationAxis =
+			Vector3.Cross(lastContactNormal, movement).normalized;
+		Quaternion rotation =
+			Quaternion.Euler(rotationAxis * angle) * ball.localRotation;
+		if(ballAlignSpeed > 0f)
+			rotation = AlignBallRotation(rotationAxis, rotation, distance);
+		ball.localRotation = rotation;
+	}
+
+	Quaternion AlignBallRotation(Vector3 rotationAxis, Quaternion rotation, float traveledDistance)
+	{
+		Vector3 ballAxis = ball.up;
+		float dot = Mathf.Clamp(Vector3.Dot(ballAxis, rotationAxis), -1f, 1f);
+		float angle = Mathf.Acos(dot) * Mathf.Rad2Deg;
+		float maxAngle = ballAlignSpeed * traveledDistance;
+
+		Quaternion newAlignment =
+			Quaternion.FromToRotation(ballAxis, rotationAxis) * rotation;
+		if(angle <= maxAngle)
+			return newAlignment;
+		else
+			return Quaternion.SlerpUnclamped(
+					rotation,
+					newAlignment,
+					maxAngle / angle
+					);
 	}
 
 	void Jump(Vector3 gravity)
