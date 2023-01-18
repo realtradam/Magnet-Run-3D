@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// Custom rigidbody which overrides the existing rigidbody
+// so that it uses our custom gravity system instead.
 [RequireComponent(typeof(Rigidbody))]
 public class RigidBodyCustomGravity : MonoBehaviour
 {

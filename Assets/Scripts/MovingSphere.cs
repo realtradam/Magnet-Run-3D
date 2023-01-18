@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// Player Sphere
+//	The sphere that the player can control and move around
 public class MovingSphere : MonoBehaviour
 {
 	// if we want input relative to a
@@ -9,6 +11,7 @@ public class MovingSphere : MonoBehaviour
 	// put that object here
 	[SerializeField]
 	Transform playerInputSpace = default;
+
 	[SerializeField]
 	Transform ball = default;
 
@@ -38,6 +41,7 @@ public class MovingSphere : MonoBehaviour
 
 	[SerializeField, Min(0f)]
 	float raycastProbeDistance = 1f;
+	// Define the following 2 variables in the editor
 	[SerializeField]
 	LayerMask probeMask = -1;
 	[SerializeField]
@@ -84,11 +88,14 @@ public class MovingSphere : MonoBehaviour
 	{
 		body = GetComponent<Rigidbody>();
 		renderer = ball.GetComponent<Renderer>();
+
+		// we define our own gravity so disable the built in one.
 		body.useGravity = false;
 	}
 
 	void Update()
 	{
+		// --- Get Input ---
 		Vector2 playerInput = new Vector2(
 				Input.GetAxis("Horizontal"),
 				Input.GetAxis("Vertical")
@@ -96,7 +103,9 @@ public class MovingSphere : MonoBehaviour
 		playerInput = Vector2.ClampMagnitude(playerInput, 1f);
 
 		desiredJump |= Input.GetButtonDown("Jump");
+		// --- ---
 
+		// --- Calculate what is considered the "floor" ---
 		if(playerInputSpace)
 		{
 			rightAxis = ProjectDirectionOnPlane(playerInputSpace.right, upAxis);
@@ -108,14 +117,9 @@ public class MovingSphere : MonoBehaviour
 			forwardAxis = ProjectDirectionOnPlane(Vector3.forward, upAxis);
 		}
 		inputVelocity = new Vector3(playerInput.x, 0f, playerInput.y) * maxSpeed;
+		// --- ---
 
-		Color purple = Color.red + Color.blue;
-		//renderer.material.SetColor(
-		//		"_BaseColor", purple - (purple * (groundContactCount * 0.33f))
-		//		);
-		//renderer.material.SetColor(
-		//		"_BaseColor", OnGround ? purple * 0.9f : purple * 0.1f
-		//		);
+		// Update visual orientation of the ball
 		UpdateBall();
 	}
 
@@ -124,6 +128,7 @@ public class MovingSphere : MonoBehaviour
 	{
 		Vector3 gravity = CustomGravity.GetGravity(body.position, out upAxis);
 		UpdateState();
+		// apply input velocities
 		AdjustVelocity();
 
 		if(desiredJump)
@@ -147,13 +152,15 @@ public class MovingSphere : MonoBehaviour
 
 	void UpdateState()
 	{
-		// if changed in editor, update these
+		// if slope angle changed in editor, update these
 		minGroundDotProduct = Mathf.Cos(maxSlopeAngle * 90 * Mathf.Deg2Rad);
 		minStairsDotProduct = Mathf.Cos(maxStairAngle * 90 * Mathf.Deg2Rad);
 
 		stepsSinceLastGrounded += 1;
 		stepsSinceLastJump += 1;
+
 		velocity = body.velocity;
+
 		if(OnGround || SnapToGround() || CheckSteepContacts())
 		{
 			stepsSinceLastGrounded = 0;
@@ -168,6 +175,7 @@ public class MovingSphere : MonoBehaviour
 			contactNormal = upAxis;
 	}
 
+	// Update visual orientation of the ball
 	void UpdateBall()
 	{
 		Vector3 movement = body.velocity * Time.deltaTime;
@@ -252,6 +260,7 @@ public class MovingSphere : MonoBehaviour
 		if(upDot < GetMinDot(hit.collider.gameObject.layer))
 			return false;
 
+		Debug.Log(Time.time);
 		groundContactCount = 1;
 		contactNormal = hit.normal;
 		float dot = Vector3.Dot(velocity, hit.normal);
@@ -260,13 +269,15 @@ public class MovingSphere : MonoBehaviour
 		return true;
 	}
 
+	// --- Hooks into Unity api for collisions ---
 	void OnCollisionStay(Collision collision) {
 		EvaluateCollision(collision);  
 	}
 
 	void OnCollisionEnter(Collision collision) {
-		EvaluateCollision(collision);  
+		EvaluateCollision(collision);
 	}
+	// --- ---
 
 	void EvaluateCollision(Collision collision) {
 		float minDot = GetMinDot(collision.gameObject.layer);
@@ -329,6 +340,9 @@ public class MovingSphere : MonoBehaviour
 
 	bool CheckSteepContacts()
 	{
+		// check if there are multiple contact points
+		// if there are: use the average normal of
+		// all contacts instead
 		if(steepContactCount > 1)
 		{
 			steepNormal.Normalize();

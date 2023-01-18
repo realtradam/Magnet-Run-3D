@@ -7,7 +7,6 @@ public class OrbitCamera : MonoBehaviour
 {
 	Camera regularCamera;
 
-
 	[SerializeField]
 	Transform focus = default;
 
@@ -62,16 +61,21 @@ public class OrbitCamera : MonoBehaviour
 	{
 		UpdateGravityAlignment();
 		UpdateFocusPoint();
+
 		if(ManualRotation() || AutomaticRotation())
 		{
 			ConstrainAngles();
 			orbitRotation = Quaternion.Euler(orbitAngles);
 		}
+
 		Quaternion lookRotation = gravityAlignment * orbitRotation;
 
 		Vector3 lookDirection = lookRotation * Vector3.forward;
 		Vector3 lookPosition = focusPoint - lookDirection * distance;
 
+		// --- Perform box cast between camera and focus target ---
+		//	determine if anything is blocking the camera.
+		//	If it is, place camera in front of that object.
 		Vector3 rectOffset = lookDirection * regularCamera.nearClipPlane;
 		Vector3 rectPosition = lookPosition + rectOffset;
 		Vector3 castFrom = focus.position;
@@ -80,22 +84,26 @@ public class OrbitCamera : MonoBehaviour
 		Vector3 castDirection = castLine / castDistance;
 
 		if(Physics.BoxCast(
-					castFrom,
-					CameraHalfExtends,
-					castDirection,
-					out RaycastHit hit,
-					lookRotation,
-					castDistance,
-					obstructionMask
+					castFrom,			// center
+					CameraHalfExtends,	// halfExtents
+					castDirection,		// direction
+					out RaycastHit hit,	// hitInfo
+					lookRotation,		// orientation
+					castDistance,		// maxDistance
+					obstructionMask		// layerMask
 					)
 		  )
 		{
 			rectPosition = castFrom + castDirection * hit.distance;
 			lookPosition = rectPosition - rectOffset;
 		}
+		// --- ---
+
 		transform.SetPositionAndRotation(lookPosition, lookRotation);
 	}
 
+	// Orients the camera depending on the direction of gravity.
+	// Interpolates the rotation so that it is smooth.
 	void UpdateGravityAlignment() {
 		Vector3 fromUp = gravityAlignment * Vector3.up;
 		Vector3 toUp = CustomGravity.GetUpAxis(focusPoint);
@@ -126,6 +134,8 @@ public class OrbitCamera : MonoBehaviour
 			gravityAlignment = newAlignment;
 	}
 
+	// Applies camera movement smoothing by interpolating
+	// the current focus point and the actual focus point
 	void UpdateFocusPoint()
 	{
 		previousFocusPoint = focusPoint;
@@ -216,6 +226,8 @@ public class OrbitCamera : MonoBehaviour
 		return true;
 	}
 
+	// Box cast requires a box that extends 1/2 in all directions
+	// (width, height, depth)
 	Vector3 CameraHalfExtends
 	{
 		get

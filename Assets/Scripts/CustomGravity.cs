@@ -2,6 +2,10 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// Gravity Source Manager
+//	This is a component holds all the gravity sources
+//	and provides a simple api for physics objects to
+//	query and get net gravity effects.
 public class CustomGravity : MonoBehaviour
 {
 	static List<GravitySource> sources = new List<GravitySource>();
