@@ -29,6 +29,6 @@ In this demo you play as a ball that rolls around various objects that have comp
   - Performs a box cast between the proposed camera location and the character to determine if the view would be blocked or if the camera is inside any geometry. If so it will place the camera in front of the blocking geometry.
 
 ## Control
-  - Input is convert to be relative to the camera and direction of gravity allowing for intuitive movement.
+  - Input is converted to be relative to the camera and direction of gravity allowing for intuitive movement.
   - Movement speed on the ground and in the air is split into 2 variables allowing better tuning of game feel.
   - When moving over an edge, a raycast check is performed and if the slope is small enough the the character sticks the surface rather then flying off the edge.
